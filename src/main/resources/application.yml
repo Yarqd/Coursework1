@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: coursework-spaced-repetition-bot
+
+telegram:
+  bot:
+    username: ${TELEGRAM_BOT_USERNAME:}
+
+logging:
+  level:
+    ru.hse.coursework: INFO
