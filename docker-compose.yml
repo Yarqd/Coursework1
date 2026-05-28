@@ -1,15 +1,23 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: coursework-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-coursework}
       POSTGRES_USER: ${POSTGRES_USER:-coursework}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coursework}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-coursework} -d ${POSTGRES_DB:-coursework}"]
       interval: 10s
@@ -19,15 +27,17 @@ services:
   minio:
     image: quay.io/minio/minio:latest
     container_name: coursework-minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-coursework}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-coursework-secret}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${MINIO_BIND:-127.0.0.1}:${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_BIND:-127.0.0.1}:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    logging: *default-logging
 
 volumes:
   postgres_data:

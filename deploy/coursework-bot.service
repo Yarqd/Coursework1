@@ -1,0 +1,20 @@
+[Unit]
+Description=Coursework spaced repetition Telegram bot
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=coursework
+Group=coursework
+WorkingDirectory=/opt/coursework-bot/app
+EnvironmentFile=/etc/coursework-bot/coursework-bot.env
+ExecStart=/bin/bash /opt/coursework-bot/app/deploy/run-bot.sh
+Restart=always
+RestartSec=10
+SuccessExitStatus=143
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

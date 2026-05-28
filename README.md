@@ -74,3 +74,57 @@ export TELEGRAM_BOT_USERNAME="..."
 Если в базе есть хотя бы одна карточка с наступившим сроком повторения, бот отправляет одно напоминание: «Привет, имя, пора повторить карточки, время пришло!». Повторное напоминание по тому же набору карточек не отправляется. Когда пользователь нажимает «Изучать», текущее напоминание считается обработанным.
 
 Во время активной учебной сессии напоминания не отправляются. Сессия считается активной 30 минут после последнего действия с карточкой.
+
+## Деплой на сервер
+
+Рекомендуемая схема для VPS:
+
+- код лежит в `/opt/coursework-bot/app`;
+- секреты и переменные окружения лежат в `/etc/coursework-bot/coursework-bot.env`;
+- PostgreSQL и MinIO запускаются через Docker Compose;
+- бот запускается как `systemd`-сервис `coursework-bot`;
+- сервис автоматически поднимается после перезагрузки и перезапускается при падении.
+
+Первичная настройка сервера:
+
+```bash
+sudo REPO_URL=https://github.com/your-user/your-repo.git bash deploy/setup-server.sh
+```
+
+После этого нужно заполнить секреты:
+
+```bash
+sudo nano /etc/coursework-bot/coursework-bot.env
+```
+
+Минимально обязательно указать:
+
+```env
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_BOT_USERNAME=...
+DB_PASSWORD=...
+POSTGRES_PASSWORD=...
+MINIO_SECRET_KEY=...
+MINIO_ROOT_PASSWORD=...
+```
+
+Запуск или обновление приложения:
+
+```bash
+sudo bash /opt/coursework-bot/app/deploy/deploy.sh
+```
+
+Проверка статуса:
+
+```bash
+systemctl status coursework-bot
+journalctl -u coursework-bot -f
+```
+
+Остановка:
+
+```bash
+sudo systemctl stop coursework-bot
+```
+
+PostgreSQL и MinIO на сервере привязаны к `127.0.0.1`, чтобы база и объектное хранилище не были доступны из интернета напрямую.
