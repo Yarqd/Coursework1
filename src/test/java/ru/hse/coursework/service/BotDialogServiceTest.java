@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import ru.hse.coursework.fsrs.FsrsCardState;
 import ru.hse.coursework.persistence.entity.FsrsCardStateEntity;
 import ru.hse.coursework.persistence.repository.FsrsCardStateRepository;
 
@@ -192,6 +193,35 @@ class BotDialogServiceTest {
                     assertThat(state.difficulty()).isBetween(1.0, 10.0);
                     assertThat(state.stability()).isPositive();
                 });
+    }
+
+    @Test
+    void fsrsStateIsCalculatedOnlyByFirstRatingInSession() {
+        long chatId = 111L;
+        String deckId = deckService.addReadyDeckToUser(chatId, "java-basics").deck().id();
+        deckService.startStudy(chatId, deckId);
+        Long cardId = deckService.currentCard(chatId, deckId)
+                .map(DeckService.CurrentCard::card)
+                .map(card -> card.id())
+                .orElseThrow();
+
+        DeckService.StudyProgress firstProgress = deckService.gradeCurrentCard(chatId, deckId, "bad");
+        FsrsCardState firstState = deckService.cardState(chatId, cardId).orElseThrow();
+
+        assertThat(firstProgress.firstRatingInSession()).isTrue();
+        assertThat(firstState.lapses()).isEqualTo(1);
+        assertThat(firstState.repetitions()).isEqualTo(1);
+
+        deckService.gradeCurrentCard(chatId, deckId, "good");
+        deckService.gradeCurrentCard(chatId, deckId, "good");
+        DeckService.StudyProgress repeatedCardProgress = deckService.gradeCurrentCard(chatId, deckId, "good");
+        FsrsCardState finalState = deckService.cardState(chatId, cardId).orElseThrow();
+
+        assertThat(repeatedCardProgress.firstRatingInSession()).isFalse();
+        assertThat(repeatedCardProgress.reviewResult()).isNull();
+        assertThat(finalState.lapses()).isEqualTo(1);
+        assertThat(finalState.repetitions()).isEqualTo(1);
+        assertThat(finalState.dueAt()).isEqualTo(firstState.dueAt());
     }
 
     @Test

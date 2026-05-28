@@ -512,6 +512,11 @@ public class BotDialogService {
     }
 
     private String reviewResultLine(DeckService.StudyProgress progress) {
+        if (!progress.firstRatingInSession()) {
+            return "Карточка закреплена в этой сессии. Интервал уже был рассчитан по первому ответу; осталось "
+                    + progress.remainingCards()
+                    + ".";
+        }
         if (progress.reviewResult() == null) {
             return "Результат повторения сохранен.";
         }

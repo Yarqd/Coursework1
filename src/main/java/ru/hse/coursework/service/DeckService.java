@@ -409,23 +409,34 @@ public class DeckService {
 
         FsrsRating rating = FsrsRating.fromCallbackGrade(grade);
         Instant now = Instant.now();
-        FsrsReviewResult reviewResult = fsrsScheduler.review(
-                fsrsCardStateRepository.findByChatIdAndCardId(chatId, currentItem.card().id())
-                        .map(this::toFsrsState)
-                        .orElseGet(() -> FsrsCardState.newCard(now)),
-                rating,
-                now
-        );
-        saveFsrsState(chatId, currentItem.card().id(), reviewResult.state());
-        saveReviewLog(chatId, currentItem.card().id(), rating, now, reviewResult);
+        FsrsReviewResult reviewResult = null;
+        boolean firstRatingInSession = session.firstRatingFor(currentItem.card().id());
+        if (firstRatingInSession) {
+            reviewResult = fsrsScheduler.review(
+                    fsrsCardStateRepository.findByChatIdAndCardId(chatId, currentItem.card().id())
+                            .map(this::toFsrsState)
+                            .orElseGet(() -> FsrsCardState.newCard(now)),
+                    rating,
+                    now
+            );
+            saveFsrsState(chatId, currentItem.card().id(), reviewResult.state());
+            saveReviewLog(chatId, currentItem.card().id(), rating, now, reviewResult);
+        }
 
         boolean finished = session.apply(rating, now);
         lastDeckByChat.put(chatId, currentItem.deckId());
         if (finished) {
             studySessions.remove(key);
-            return StudyProgress.finished(session.totalCards(), reviewResult);
+            return StudyProgress.finished(session.totalCards(), reviewResult, firstRatingInSession);
         }
-        return new StudyProgress(false, session.rememberedCount(), session.totalCards(), session.remainingCount(), reviewResult);
+        return new StudyProgress(
+                false,
+                session.rememberedCount(),
+                session.totalCards(),
+                session.remainingCount(),
+                reviewResult,
+                firstRatingInSession
+        );
     }
 
     @Transactional(readOnly = true)
@@ -643,6 +654,7 @@ public class DeckService {
         private final String studyTitle;
         private final Queue<StudyItem> queue;
         private final Set<Long> rememberedCardIds = new HashSet<>();
+        private final Set<Long> ratedCardIds = new HashSet<>();
         private final int totalCards;
         private StudyItem currentItem;
         private Instant lastTouchedAt;
@@ -658,6 +670,10 @@ public class DeckService {
         private static StudySession start(String studyTitle, List<StudyItem> items, Instant now) {
             Queue<StudyItem> queue = new ArrayDeque<>(items);
             return new StudySession(studyTitle, queue, queue.poll(), items.size(), now);
+        }
+
+        private boolean firstRatingFor(Long cardId) {
+            return ratedCardIds.add(cardId);
         }
 
         private boolean apply(FsrsRating rating, Instant now) {
@@ -830,14 +846,19 @@ public class DeckService {
             int rememberedCards,
             int totalCards,
             int remainingCards,
-            FsrsReviewResult reviewResult
+            FsrsReviewResult reviewResult,
+            boolean firstRatingInSession
     ) {
         public static StudyProgress empty() {
-            return new StudyProgress(true, 0, 0, 0, null);
+            return new StudyProgress(true, 0, 0, 0, null, false);
         }
 
         public static StudyProgress finished(int totalCards, FsrsReviewResult reviewResult) {
-            return new StudyProgress(true, totalCards, totalCards, 0, reviewResult);
+            return finished(totalCards, reviewResult, reviewResult != null);
+        }
+
+        public static StudyProgress finished(int totalCards, FsrsReviewResult reviewResult, boolean firstRatingInSession) {
+            return new StudyProgress(true, totalCards, totalCards, 0, reviewResult, firstRatingInSession);
         }
     }
 }
