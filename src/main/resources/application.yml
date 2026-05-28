@@ -1,10 +1,37 @@
 spring:
   application:
     name: coursework-spaced-repetition-bot
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/coursework}
+    username: ${DB_USERNAME:coursework}
+    password: ${DB_PASSWORD:coursework}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
 
 telegram:
   bot:
+    token: ${TELEGRAM_BOT_TOKEN:}
     username: ${TELEGRAM_BOT_USERNAME:}
+
+storage:
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:coursework}
+    secret-key: ${MINIO_SECRET_KEY:coursework-secret}
+    bucket: ${MINIO_BUCKET:coursework-media}
+
+review-reminders:
+  initial-delay: ${REVIEW_REMINDERS_INITIAL_DELAY:15000}
+  fixed-delay: ${REVIEW_REMINDERS_FIXED_DELAY:60000}
 
 logging:
   level:
